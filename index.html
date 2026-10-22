@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ thống Cảnh báo PCCC</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: #f0f4f8; color: #1e293b; display: flex; justify-content: center; min-height: 100vh; padding: 12px; }
+    .phone-container { width: 100%; max-width: 410px; background: #f8fafc; border-radius: 36px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; padding: 20px 16px; border: 8px solid #0f172a; position: relative; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; margin-top: 10px; }
+    .header h1 { font-size: 20px; font-weight: 700; color: #0f172a; }
+    .header p { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .btn-settings { background: #e2e8f0; border: none; width: 36px; height: 36px; border-radius: 50%; color: #475569; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .status-card { background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2); transition: all 0.3s; }
+    .status-card.gas-warning { background: linear-gradient(135deg, #f97316, #ea580c); box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3); animation: pulse 1s infinite alternate; }
+    .status-card.fire-warning { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3); animation: pulse 0.6s infinite alternate; }
+    @keyframes pulse { from { opacity: 1; } to { opacity: 0.8; } }
+    .status-header { display: flex; align-items: center; justify-content: space-between; }
+    .status-icon-bg { width: 42px; height: 42px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .status-badge { background: rgba(255, 255, 255, 0.25); padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .status-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; margin-top: 12px; }
+    .status-value { font-size: 18px; font-weight: 800; margin-top: 2px; }
+    .status-sub { font-size: 11px; opacity: 0.85; margin-top: 4px; }
+    
+    /* Layout Lưới 2 Cột */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .card { background: white; border-radius: 20px; padding: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .icon-box { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    
+    /* Tùy chỉnh Màu Icon */
+    .icon-temp { background: #ffedd5; color: #f97316; }
+    .icon-gas { background: #e0f2fe; color: #0284c7; }
+    .icon-flame { background: #dcfce7; color: #166534; }
+    .icon-aqi { background: #ccfbf1; color: #0d9488; }
+    
+    .sensor-tag { font-size: 10px; font-weight: 600; color: #94a3b8; }
+    .metric-val { font-size: 20px; font-weight: 800; color: #0f172a; }
+    .metric-unit { font-size: 12px; font-weight: 600; color: #64748b; }
+    .metric-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .badge-sub { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 600; margin-top: 6px; background: #dcfce7; color: #166534; }
+    
+    .chart-card { background: white; border-radius: 20px; padding: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; margin-bottom: 16px; margin-top: 4px; }
+    .chart-title { font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); border-radius: 28px; z-index: 10; align-items: center; justify-content: center; padding: 20px; }
+    .modal-content { background: white; border-radius: 20px; padding: 20px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .input-group { margin-bottom: 12px; }
+    .input-group label { font-size: 12px; color: #64748b; display: block; margin-bottom: 4px; }
+    .input-group input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; }
+    .btn-save { background: #2563eb; color: white; border: none; width: 100%; padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body onclick="enableAudio()">
+  <div class="phone-container">
+    <div class="header">
+      <div>
+        <h1>Hệ thống Cảnh báo</h1>
+        <p id="conn-status">Đã kết nối • ESP32 IoT</p>
+      </div>
+      <button class="btn-settings" onclick="openModal()"><i class="fa-solid fa-gear"></i></button>
+    </div>
+
+    <!-- Thẻ Trạng Thái -->
+    <div class="status-card" id="main-status-card">
+      <div class="status-header">
+        <div class="status-icon-bg"><i class="fa-solid fa-shield-halved" id="status-icon"></i></div>
+        <div class="status-badge" id="status-badge">AN TOÀN</div>
+      </div>
+      <div class="status-title">TRẠNG THÁI MÔI TRƯỜNG</div>
+      <div class="status-value" id="status-text">SECURE & SAFE</div>
+      <div class="status-sub" id="status-sub">Hệ thống hoạt động bình thường</div>
+    </div>
+
+    <!-- Hàng 1: Nhiệt Độ & Nồng Độ Gas -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <div class="icon-box icon-temp"><i class="fa-solid fa-temperature-half"></i></div>
+          <span class="sensor-tag">DHT11</span>
+        </div>
+        <div><span class="metric-val" id="temp-val">--</span> <span class="metric-unit">°C</span></div>
+        <div class="metric-label">Nhiệt độ phòng</div>
+        <span class="badge-sub" id="temp-badge">Bình thường</span>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="icon-box icon-gas"><i class="fa-solid fa-cloud-bolt"></i></div>
+          <span class="sensor-tag">MQ-2</span>
+        </div>
+        <div><span class="metric-val" id="gas-val">--</span> <span class="metric-unit">PPM</span></div>
+        <div class="metric-label">Khói & Khí Gas</div>
+        <span class="badge-sub" id="gas-badge">An toàn</span>
+      </div>
+    </div>
+
+    <!-- Hàng 2: Phát Hiện Lửa & Chất Lượng Khí (Thêm Mới) -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <div class="icon-box icon-flame" id="flame-icon-bg"><i class="fa-solid fa-fire" id="flame-icon"></i></div>
+          <span class="sensor-tag">Flame</span>
+        </div>
+        <div><span class="metric-val" id="flame-val" style="font-size: 17px;">Không có lửa</span></div>
+        <div class="metric-label">Phát hiện Lửa</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="icon-box icon-aqi"><i class="fa-solid fa-wind"></i></div>
+          <span class="sensor-tag">AQI</span>
+        </div>
+        <div><span class="metric-val" id="aqi-val" style="font-size: 17px; color: #10b981;">Tốt (Safe)</span></div>
+        <div class="metric-label">Chất lượng khí</div>
+      </div>
+    </div>
+
+    <!-- Đồ Thị -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>ĐỒ THỊ NHIỆT ĐỘ THỰC TẾ</span>
+        <span style="font-size: 10px; font-weight: normal; color: #94a3b8;">Cập nhật 2s/lần</span>
+      </div>
+      <canvas id="tempChart" height="110"></canvas>
+    </div>
+  </div>
+
+  <!-- Modal Cấu Hình Token -->
+  <div class="modal" id="configModal">
+    <div class="modal-content">
+      <div class="modal-title">Cấu hình Blynk Token</div>
+      <div class="input-group">
+        <label>Auth Token:</label>
+        <input type="text" id="authTokenInput" placeholder="Nhập mã Auth Token...">
+      </div>
+      <button class="btn-save" onclick="saveToken()">Lưu & Kết nối</button>
+    </div>
+  </div>
+
+  <script>
+    let authToken = localStorage.getItem('blynk_token') || '5pKj3tJ3...';
+    document.getElementById('authTokenInput').value = authToken;
+
+    let audioCtx = null;
+    function enableAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playBeep(freq = 880, duration = 0.2) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    const ctx = document.getElementById('tempChart').getContext('2d');
+    const tempChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Nhiệt độ (°C)', data: [], borderColor: '#10b981', tension: 0.4, fill: false }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { min: 20, max: 60 } } }
+    });
+
+    async function fetchData() {
+      if (!authToken) return;
+      try {
+        const resTemp = await fetch(`https://sgp1.blynk.cloud/external/api/get?token=${authToken}&v0`);
+        const temp = await resTemp.text();
+        
+        const resGas = await fetch(`https://sgp1.blynk.cloud/external/api/get?token=${authToken}&v1`);
+        const gas = await resGas.text();
+
+        // Đọc giá trị Cảm biến Lửa (V5) & AQI (V6)
+        let flame = "0";
+        try {
+          const resFlame = await fetch(`https://sgp1.blynk.cloud/external/api/get?token=${authToken}&v5`);
+          flame = await resFlame.text();
+        } catch(e){}
+
+        let aqi = "Tốt (Safe)";
+        try {
+          const resAqi = await fetch(`https://sgp1.blynk.cloud/external/api/get?token=${authToken}&v6`);
+          const fetchedAqi = await resAqi.text();
+          if (fetchedAqi && fetchedAqi.trim() !== "") aqi = fetchedAqi;
+        } catch(e){}
+
+        updateUI(parseFloat(temp), parseInt(gas), flame.trim(), aqi.trim());
+      } catch (e) {
+        document.getElementById('conn-status').innerText = 'Mất kết nối Blynk';
+      }
+    }
+
+    function updateUI(temp, gas, flame, aqi) {
+      document.getElementById('temp-val').innerText = isNaN(temp) ? '--' : temp.toFixed(1);
+      document.getElementById('gas-val').innerText = isNaN(gas) ? '--' : gas;
+      
+      // Cập nhật thẻ Flame
+      const flameVal = document.getElementById('flame-val');
+      const flameIconBg = document.getElementById('flame-icon-bg');
+      if (flame === "1") {
+        flameVal.innerText = "CÓ LỬA!";
+        flameVal.style.color = "#ef4444";
+        flameIconBg.style.background = "#fee2e2";
+        flameIconBg.style.color = "#ef4444";
+      } else {
+        flameVal.innerText = "Không có lửa";
+        flameVal.style.color = "#0f172a";
+        flameIconBg.style.background = "#dcfce7";
+        flameIconBg.style.color = "#166534";
+      }
+
+      // Cập nhật thẻ AQI
+      document.getElementById('aqi-val').innerText = aqi;
+
+      // Cập nhật thẻ Trạng Thái Chính & Cảnh Báo
+      const card = document.getElementById('main-status-card');
+      const text = document.getElementById('status-text');
+      const badge = document.getElementById('status-badge');
+
+      if (flame === "1" || temp > 50) {
+        card.className = 'status-card fire-warning';
+        text.innerText = 'CẢNH BÁO HỎA HOẠN!';
+        badge.innerText = 'CHÁY';
+        playBeep(1200, 0.15);
+      } else if (gas > 300) {
+        card.className = 'status-card gas-warning';
+        text.innerText = 'CẢNH BÁO RÒ RỈ GAS!';
+        badge.innerText = 'NGUY HIỂM';
+        playBeep(750, 0.3);
+      } else {
+        card.className = 'status-card';
+        text.innerText = 'SECURE & SAFE';
+        badge.innerText = 'AN TOÀN';
+      }
+
+      const now = new Date().toLocaleTimeString();
+      tempChart.data.labels.push(now);
+      tempChart.data.datasets[0].data.push(temp);
+      if (tempChart.data.labels.length > 7) {
+        tempChart.data.labels.shift();
+        tempChart.data.datasets[0].data.shift();
+      }
+      tempChart.update();
+    }
+
+    function openModal() { document.getElementById('configModal').style.display = 'flex'; }
+    function saveToken() {
+      authToken = document.getElementById('authTokenInput').value;
+      localStorage.setItem('blynk_token', authToken);
+      document.getElementById('configModal').style.display = 'none';
+      fetchData();
+    }
+
+    setInterval(fetchData, 2000);
+  </script>
+</body>
+</html>
