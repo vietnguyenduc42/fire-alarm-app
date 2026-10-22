@@ -24,25 +24,19 @@
     .status-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; margin-top: 12px; }
     .status-value { font-size: 18px; font-weight: 800; margin-top: 2px; }
     .status-sub { font-size: 11px; opacity: 0.85; margin-top: 4px; }
-    
-    /* Layout Lưới 2 Cột */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     .card { background: white; border-radius: 20px; padding: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; }
     .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .icon-box { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
-    
-    /* Tùy chỉnh Màu Icon */
     .icon-temp { background: #ffedd5; color: #f97316; }
     .icon-gas { background: #e0f2fe; color: #0284c7; }
     .icon-flame { background: #dcfce7; color: #166534; }
     .icon-aqi { background: #ccfbf1; color: #0d9488; }
-    
     .sensor-tag { font-size: 10px; font-weight: 600; color: #94a3b8; }
     .metric-val { font-size: 20px; font-weight: 800; color: #0f172a; }
     .metric-unit { font-size: 12px; font-weight: 600; color: #64748b; }
     .metric-label { font-size: 11px; color: #64748b; margin-top: 2px; }
     .badge-sub { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 600; margin-top: 6px; background: #dcfce7; color: #166534; }
-    
     .chart-card { background: white; border-radius: 20px; padding: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; margin-bottom: 16px; margin-top: 4px; }
     .chart-title { font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 10px; display: flex; justify-content: space-between; }
     .modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); border-radius: 28px; z-index: 10; align-items: center; justify-content: center; padding: 20px; }
@@ -64,7 +58,6 @@
       <button class="btn-settings" onclick="openModal()"><i class="fa-solid fa-gear"></i></button>
     </div>
 
-    <!-- Thẻ Trạng Thái -->
     <div class="status-card" id="main-status-card">
       <div class="status-header">
         <div class="status-icon-bg"><i class="fa-solid fa-shield-halved" id="status-icon"></i></div>
@@ -75,7 +68,6 @@
       <div class="status-sub" id="status-sub">Hệ thống hoạt động bình thường</div>
     </div>
 
-    <!-- Hàng 1: Nhiệt Độ & Nồng Độ Gas -->
     <div class="grid-2">
       <div class="card">
         <div class="card-head">
@@ -98,7 +90,6 @@
       </div>
     </div>
 
-    <!-- Hàng 2: Phát Hiện Lửa & Chất Lượng Khí (Thêm Mới) -->
     <div class="grid-2">
       <div class="card">
         <div class="card-head">
@@ -109,17 +100,17 @@
         <div class="metric-label">Phát hiện Lửa</div>
       </div>
 
+      <!-- Thẻ MQ2 Status (Đã đổi tên chuẩn kỹ thuật) -->
       <div class="card">
         <div class="card-head">
           <div class="icon-box icon-aqi"><i class="fa-solid fa-wind"></i></div>
-          <span class="sensor-tag">AQI</span>
+          <span class="sensor-tag">Air Safety</span>
         </div>
         <div><span class="metric-val" id="aqi-val" style="font-size: 17px; color: #10b981;">Tốt (Safe)</span></div>
-        <div class="metric-label">Chất lượng khí</div>
+        <div class="metric-label">Trạng thái khí đốt</div>
       </div>
     </div>
 
-    <!-- Đồ Thị -->
     <div class="chart-card">
       <div class="chart-title">
         <span>ĐỒ THỊ NHIỆT ĐỘ THỰC TẾ</span>
@@ -129,7 +120,6 @@
     </div>
   </div>
 
-  <!-- Modal Cấu Hình Token -->
   <div class="modal" id="configModal">
     <div class="modal-content">
       <div class="modal-title">Cấu hình Blynk Token</div>
@@ -181,7 +171,6 @@
         const resGas = await fetch(`https://sgp1.blynk.cloud/external/api/get?token=${authToken}&v1`);
         const gas = await resGas.text();
 
-        // Đọc giá trị Cảm biến Lửa (V5) & AQI (V6)
         let flame = "0";
         try {
           const resFlame = await fetch(`https://sgp1.blynk.cloud/external/api/get?token=${authToken}&v5`);
@@ -192,10 +181,12 @@
         try {
           const resAqi = await fetch(`https://sgp1.blynk.cloud/external/api/get?token=${authToken}&v6`);
           const fetchedAqi = await resAqi.text();
-          if (fetchedAqi && fetchedAqi.trim() !== "") aqi = fetchedAqi;
+          if (fetchedAqi && fetchedAqi.trim() !== "" && !fetchedAqi.includes("error")) {
+            aqi = fetchedAqi.trim();
+          }
         } catch(e){}
 
-        updateUI(parseFloat(temp), parseInt(gas), flame.trim(), aqi.trim());
+        updateUI(parseFloat(temp), parseInt(gas), flame.trim(), aqi);
       } catch (e) {
         document.getElementById('conn-status').innerText = 'Mất kết nối Blynk';
       }
@@ -205,7 +196,6 @@
       document.getElementById('temp-val').innerText = isNaN(temp) ? '--' : temp.toFixed(1);
       document.getElementById('gas-val').innerText = isNaN(gas) ? '--' : gas;
       
-      // Cập nhật thẻ Flame
       const flameVal = document.getElementById('flame-val');
       const flameIconBg = document.getElementById('flame-icon-bg');
       if (flame === "1") {
@@ -220,10 +210,8 @@
         flameIconBg.style.color = "#166534";
       }
 
-      // Cập nhật thẻ AQI
       document.getElementById('aqi-val').innerText = aqi;
 
-      // Cập nhật thẻ Trạng Thái Chính & Cảnh Báo
       const card = document.getElementById('main-status-card');
       const text = document.getElementById('status-text');
       const badge = document.getElementById('status-badge');
